@@ -55,8 +55,6 @@ carreras_seleccionadas = st.sidebar.multiselect(
 regiones_disponibles = sorted(base_total["CODIGO_REGION"].dropna().unique())
 region_seleccionada = st.sidebar.selectbox("Selecciona una región", regiones_disponibles)
 
-waffle_carreras = carreras_seleccionadas
-
 # ---------------------------
 # Tabs del dashboard
 # ---------------------------
@@ -68,7 +66,6 @@ tab0, tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🎟️ Ingreso",
     "🏫 Establecimiento"
 ])
-
 
 # ---------------------------
 # Tab 0: Introducción
@@ -86,6 +83,14 @@ with tab0:
     - Origen escolar de estudiantes (por región).
     
     Los datos corresponden a las admisiones **2023, 2024 y 2025**.
+
+    Equipo técnico: 
+                
+    - Javiera Baeza, Ingenieria Civil Biomédica
+    - Matías Deneken, Sociólogo
+    - Florencia Pampaloni, Ingenieria Comercial                 
+
+
     """)
 
 # ---------------------------
@@ -103,7 +108,7 @@ with tab1:
         labels={"PTJE_PONDERADO": "Puntaje Promedio", "ANIO": "Año"},
         title="Tendencia Puntaje Promedio por Carrera"
     )
-    fig_linea.update_layout(yaxis=dict(range=[500, 1000]))
+    fig_linea.update_layout(yaxis=dict(range=[500, 1000]), xaxis=dict(tickmode='array', tickvals=[2023, 2024, 2025]))
     st.plotly_chart(fig_linea, use_container_width=True)
 
     st.subheader("Promedio de Puntaje por Sexo y Año")
@@ -114,7 +119,7 @@ with tab1:
         barmode="group", text_auto=".1f",
         title="Promedio Puntaje Ponderado PAES por Sexo"
     )
-    fig_barras.update_layout(yaxis=dict(range=[500, 1000]))
+    fig_barras.update_layout(yaxis=dict(range=[500, 1000]), xaxis=dict(tickmode='array', tickvals=[2023, 2024, 2025]))
     st.plotly_chart(fig_barras, use_container_width=True)
 
 # ---------------------------
@@ -146,7 +151,7 @@ with tab2:
     st.plotly_chart(fig_mapa, use_container_width=True)
 
 # ---------------------------
-# Tab 3: Sexo (con waffle)
+# Tab 3: Sexo (facet + waffle)
 # ---------------------------
 with tab3:
     st.header("Proporción de Postulantes por Sexo")
@@ -162,10 +167,11 @@ with tab3:
         markers=True
     )
     fig_facet.update_yaxes(tickformat=".0%")
+    fig_facet.update_layout(xaxis=dict(tickmode='array', tickvals=[2023, 2024, 2025]))
     st.plotly_chart(fig_facet, use_container_width=True)
 
     st.subheader("Distribución tipo Waffle")
-    df_filtrado = base_total[base_total["CARRERA"].isin(waffle_carreras)].copy()
+    df_filtrado = base_total[base_total["CARRERA"].isin(carreras_seleccionadas)].copy()
     df_filtrado["ANIO"] = df_filtrado["ANIO"].astype(str)
     df_n = df_filtrado.groupby(["ANIO", "SEXO", "CARRERA"]).size().reset_index(name="N")
     df_n["TOTAL"] = df_n.groupby(["ANIO", "CARRERA"])["N"].transform("sum")
@@ -213,11 +219,16 @@ with tab4:
 # Tab 5: Establecimiento
 # ---------------------------
 with tab5:
-    st.header("Colegios de Egreso por Región")
-    region_data = base_total[base_total["CODIGO_REGION"] == region_seleccionada].copy()
+    st.header("Colegios con más estudiantes (Región seleccionada)")
+
+    region_filtrada = base_total[base_total["CODIGO_REGION"] == region_seleccionada].copy()
 
     top_colegios = (
-        region_data["NOMBRE_COLEGIO_EGRESO"].value_counts().head(30).reset_index()
+        region_filtrada["NOMBRE_COLEGIO_EGRESO"]
+        .astype(str)
+        .value_counts()
+        .head(30)
+        .reset_index()
     )
     top_colegios.columns = ["NOMBRE_COLEGIO_EGRESO", "N_ESTUDIANTES"]
 
@@ -225,18 +236,23 @@ with tab5:
         top_colegios,
         x="N_ESTUDIANTES",
         y="NOMBRE_COLEGIO_EGRESO",
-        orientation="h"
+        orientation="h",
+        title=f"Colegios con más estudiantes (Región {region_seleccionada})",
+        labels={"NOMBRE_COLEGIO_EGRESO": "Nombre del Colegio", "N_ESTUDIANTES": "Cantidad de Estudiantes"}
     )
     fig_bar.update_layout(yaxis=dict(categoryorder='total ascending'))
     st.plotly_chart(fig_bar, use_container_width=True)
 
     st.subheader("Nube de Palabras de Colegios")
-    texto = " ".join(region_data["NOMBRE_COLEGIO_EGRESO"].dropna().astype(str))
-    wordcloud = WordCloud(width=1000, height=500, background_color="white").generate(texto)
-    fig_wc, ax = plt.subplots(figsize=(15, 7))
-    ax.imshow(wordcloud, interpolation="bilinear")
-    ax.axis("off")
-    st.pyplot(fig_wc)
+    texto = " ".join(region_filtrada["NOMBRE_COLEGIO_EGRESO"].dropna().astype(str))
+    if texto.strip():
+        wordcloud = WordCloud(width=1000, height=500, background_color="white").generate(texto)
+        fig_wc, ax = plt.subplots(figsize=(15, 7))
+        ax.imshow(wordcloud, interpolation="bilinear")
+        ax.axis("off")
+        st.pyplot(fig_wc)
+    else:
+        st.info("⚠️ No hay datos suficientes para mostrar una nube de palabras en esta región.")
 
 
 #streamlit run app.py
