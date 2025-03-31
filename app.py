@@ -47,13 +47,15 @@ st.sidebar.title("🎓 Filtros")
 
 carreras_disponibles = sorted(base_total["CARRERA"].dropna().unique())
 carreras_seleccionadas = st.sidebar.multiselect(
-    "Selecciona carreras para comparar",
+    "Selecciona carreras para comparar (afecta todos los gráficos)",
     options=carreras_disponibles,
     default=["Sociología", "Medicina", "Derecho"]
 )
 
 regiones_disponibles = sorted(base_total["CODIGO_REGION"].dropna().unique())
 region_seleccionada = st.sidebar.selectbox("Selecciona una región", regiones_disponibles)
+
+waffle_carreras = carreras_seleccionadas
 
 # ---------------------------
 # Tabs del dashboard
@@ -66,6 +68,7 @@ tab0, tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🎟️ Ingreso",
     "🏫 Establecimiento"
 ])
+
 
 # ---------------------------
 # Tab 0: Introducción
@@ -161,8 +164,8 @@ with tab3:
     fig_facet.update_yaxes(tickformat=".0%")
     st.plotly_chart(fig_facet, use_container_width=True)
 
-    st.subheader("Distribución tipo Waffle: Ingeniería Comercial")
-    df_filtrado = base_total[base_total["CARRERA"].str.lower().str.contains("ingeniería comercial")].copy()
+    st.subheader("Distribución tipo Waffle")
+    df_filtrado = base_total[base_total["CARRERA"].isin(waffle_carreras)].copy()
     df_filtrado["ANIO"] = df_filtrado["ANIO"].astype(str)
     df_n = df_filtrado.groupby(["ANIO", "SEXO", "CARRERA"]).size().reset_index(name="N")
     df_n["TOTAL"] = df_n.groupby(["ANIO", "CARRERA"])["N"].transform("sum")
@@ -174,7 +177,7 @@ with tab3:
         blocks = []
         for _, row in group.iterrows():
             count = int(round(row["PROPORCION"] * rows * cols))
-            blocks.extend([row["SEXO"]] * count)
+            blocks.extend([str(row["SEXO"]) for _ in range(count)])
         blocks = blocks[:rows * cols]
         x = [i % cols for i in range(len(blocks))]
         y = [-(i // cols) for i in range(len(blocks))]
@@ -228,7 +231,7 @@ with tab5:
     st.plotly_chart(fig_bar, use_container_width=True)
 
     st.subheader("Nube de Palabras de Colegios")
-    texto = " ".join(region_data["NOMBRE_COLEGIO_EGRESO"].dropna())
+    texto = " ".join(region_data["NOMBRE_COLEGIO_EGRESO"].dropna().astype(str))
     wordcloud = WordCloud(width=1000, height=500, background_color="white").generate(texto)
     fig_wc, ax = plt.subplots(figsize=(15, 7))
     ax.imshow(wordcloud, interpolation="bilinear")
@@ -236,5 +239,5 @@ with tab5:
     st.pyplot(fig_wc)
 
 
-
 #streamlit run app.py
+# return pd.read_excel("bbdd/base_total_homologada.xlsx")
