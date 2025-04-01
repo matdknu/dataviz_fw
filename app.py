@@ -70,28 +70,40 @@ tab0, tab1, tab2, tab3, tab4, tab5 = st.tabs([
 # ---------------------------
 # Tab 0: Introducción
 # ---------------------------
+# ---------------------------
+# Tab 0: Introducción
+# ---------------------------
 with tab0:
-    st.title("📘 Introducción")
     st.markdown("""
-    Bienvenido/a al **Dashboard PAES – Universidad de Concepción**.
-    
-    Este panel permite explorar información sobre:
-    
-    - Evolución del puntaje ponderado promedio por carrera.
-    - Distribución de estudiantes por región (Año 2025).
-    - Diferencias por sexo, dependencia e ingreso.
-    - Origen escolar de estudiantes (por región).
-    
-    Los datos corresponden a las admisiones **2023, 2024 y 2025**.
+    <div style='text-align: center;'>
+        <h1 style='font-size: 2.5em;'>📘 Bienvenido/a al Dashboard PAES</h1>
+        <h3 style='color: #004fa3;'>Universidad de Concepción</h3>
+        <img src='https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcnV0a2EwNnY4eHphdHFuY3JzYnh4OG9hYjFjZDRidGttODF4b3o1diZlcD12MV9naWZzX3NlYXJjaCZjdD1n/kUTME7ABmhYg5J3psM/giphy.gif' 
+             width='500' style='margin-top: 10px; border-radius: 12px;'>
+    </div>
 
-    Equipo técnico: 
-                
-    - Javiera Baeza, Ingenieria Civil Biomédica
-    - Matías Deneken, Sociólogo
-    - Florencia Pampaloni, Ingenieria Comercial                 
+    <br>
 
+    <div style='font-size: 1.1em; line-height: 1.6;'>
+        Este panel interactivo permite explorar información sobre:
+        <ul>
+            <li>📈 Evolución del <strong>puntaje ponderado promedio</strong> por carrera.</li>
+            <li>🗺️ Distribución de estudiantes por <strong>región</strong> (Año 2025).</li>
+            <li>⚧️ Diferencias por <strong>sexo</strong>, <strong>tipo de dependencia</strong> e <strong>ingreso</strong>.</li>
+            <li>🏫 Origen escolar de estudiantes (por región).</li>
+        </ul>
+        <p>Los datos corresponden a las admisiones <strong>2023, 2024 y 2025</strong>.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
+    st.markdown("""
+    ---
+    **Equipo técnico:**
+    - 👩‍💻 [Javiera Baeza – Ingeniera Civil Biomédica](https://www.linkedin.com/in/javiera-baeza/)
+    - 🧑‍💼 [Matías Deneken – Sociólogo](https://www.linkedin.com/in/deneken/)
+    - 👩‍💼 [Florencia Pampaloni – Ingeniera Comercial](https://www.linkedin.com/in/florenciapampaloni/)
     """)
+
 
 # ---------------------------
 # Tab 1: Puntaje por carrera
