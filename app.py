@@ -58,12 +58,13 @@ region_seleccionada = st.sidebar.selectbox("Selecciona una región", regiones_di
 # ---------------------------
 # Tabs del dashboard
 # ---------------------------
-tab0, tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab0, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📘 Introducción",
     "📈 Puntaje por Carrera",
     "🗺️ Estudiantes por Región (2025)",
     "📊 Sexo",
-    "🎟️ Ingreso",
+    "🎟️ Grupo dependencia",
+    "🎟️ Tipo de ingreso ",
     "🏫 Establecimiento"
 ])
 
@@ -99,9 +100,9 @@ with tab0:
     st.markdown("""
     ---
     **Equipo técnico:**
-    - 👩‍💻 [Javiera Baeza – Ingeniera Civil Biomédica](https://www.linkedin.com/in/javiera-baeza/)
+    - 👩‍💻 [Javiera Baeza – Ingeniera Civil Biomédica](https://www.linkedin.com/in/javiera-baeza-acuña-378458216/)
     - 🧑‍💼 [Matías Deneken – Sociólogo](https://www.linkedin.com/in/deneken/)
-    - 👩‍💼 [Florencia Pampaloni – Ingeniera Comercial](https://www.linkedin.com/in/florenciapampaloni/)
+    - 👩‍💼 [Florencia Pampaloni – Ingeniera Comercial](https://www.linkedin.com/in/florencia-pampaloni-benítez/)
     """)
 
 
@@ -182,55 +183,125 @@ with tab3:
     fig_facet.update_layout(xaxis=dict(tickmode='array', tickvals=[2023, 2024, 2025]))
     st.plotly_chart(fig_facet, use_container_width=True)
 
-    st.subheader("Distribución tipo Waffle")
-    df_filtrado = base_total[base_total["CARRERA"].isin(carreras_seleccionadas)].copy()
-    df_filtrado["ANIO"] = df_filtrado["ANIO"].astype(str)
-    df_n = df_filtrado.groupby(["ANIO", "SEXO", "CARRERA"]).size().reset_index(name="N")
-    df_n["TOTAL"] = df_n.groupby(["ANIO", "CARRERA"])["N"].transform("sum")
-    df_n["PROPORCION"] = df_n["N"] / df_n["TOTAL"]
 
-    waffle_data = []
-    rows, cols = 5, 20
-    for (anio, carrera), group in df_n.groupby(["ANIO", "CARRERA"]):
-        blocks = []
-        for _, row in group.iterrows():
-            count = int(round(row["PROPORCION"] * rows * cols))
-            blocks.extend([str(row["SEXO"]) for _ in range(count)])
-        blocks = blocks[:rows * cols]
-        x = [i % cols for i in range(len(blocks))]
-        y = [-(i // cols) for i in range(len(blocks))]
-        waffle_df = pd.DataFrame({"x": x, "y": y, "SEXO": blocks})
-        waffle_df["ANIO"] = anio
-        waffle_df["CARRERA"] = carrera
-        waffle_data.append(waffle_df)
-
-    df_waffle = pd.concat(waffle_data, ignore_index=True)
-    fig = px.scatter(df_waffle, x="x", y="y", color="SEXO", facet_col="ANIO", facet_col_wrap=2)
-    fig.update_traces(marker=dict(size=12))
-    fig.update_layout(showlegend=True, height=400)
-    fig.for_each_xaxis(lambda ax: ax.update(showticklabels=False))
-    fig.for_each_yaxis(lambda ax: ax.update(showticklabels=False))
-    st.plotly_chart(fig, use_container_width=True)
+    
 
 # ---------------------------
-# Tab 4: Ingreso (dependencia + ingreso)
+# Tab 4: Dependencia
 # ---------------------------
 with tab4:
-    st.header("Matrícula por Grupo de Dependencia e Ingreso")
-    df_dep = base_total.groupby(["ANIO", "GRUPO_DEPENDENCIA_EST"]).size().reset_index(name="N_ESTUDIANTES")
-    fig_dep = px.line(df_dep, x="ANIO", y="N_ESTUDIANTES", color="GRUPO_DEPENDENCIA_EST", markers=True)
-    st.plotly_chart(fig_dep, use_container_width=True)
+    st.header("📊 Matrícula por Grupo de Dependencia e Ingreso")
 
-    st.subheader("Distribución por Tipo de Ingreso (2025)")
-    base_2025 = base_total[base_total["ANIO"] == 2025].copy()
-    fig_torta = px.pie(base_2025, names="INGRESO", hole=0.3)
-    fig_torta.update_traces(textposition='inside', textinfo='percent+label')
-    st.plotly_chart(fig_torta, use_container_width=True)
+    df_dep = base_total.groupby(["ANIO", "GRUPO_DEPENDENCIA_EST"]).size().reset_index(name="N_ESTUDIANTES")
+    fig_dep = px.line(
+        df_dep,
+        x="ANIO", y="N_ESTUDIANTES", color="GRUPO_DEPENDENCIA_EST", markers=True,
+        labels={"N_ESTUDIANTES": "Cantidad de Estudiantes", "ANIO": "Año", "GRUPO_DEPENDENCIA_EST": "Dependencia"},
+        title="Evolución de la matrícula por dependencia del establecimiento"
+    )
+    st.plotly_chart(fig_dep, use_container_width=True, key="fig_dep")
+
+
+
+    st.subheader("🎯 Distribución de Puntajes por Grupo de Dependencia (2025)")
+    carreras_filtradas = st.multiselect(
+        "Selecciona una o más carreras para visualizar su distribución de puntajes",
+        options=carreras_disponibles,
+        default=["Sociología"]
+    )
+
+    df_densidad = base_total[
+        (base_total["ANIO"] == 2025) &
+        (base_total["CARRERA"].isin(carreras_filtradas)) &
+        (base_total["PTJE_PONDERADO"].notna()) &
+        (base_total["GRUPO_DEPENDENCIA_EST"] != "SIN INFORMACIÓN")
+    ].copy()
+
+    fig_violin = px.violin(
+        df_densidad,
+        x="PTJE_PONDERADO",
+        color="GRUPO_DEPENDENCIA_EST",
+        facet_row="CARRERA",
+        box=True,
+        points="all",
+        orientation="h",
+        labels={
+            "PTJE_PONDERADO": "Puntaje Ponderado",
+            "GRUPO_DEPENDENCIA_EST": "Dependencia"
+        },
+        title="Distribución del Puntaje Ponderado por Carrera y Dependencia (2025)"
+    )
+
+    fig_violin.update_layout(
+        height=400 + 200 * len(carreras_filtradas),
+        margin=dict(t=60, b=40, l=40, r=40),
+        template="simple_white"
+    )
+    st.plotly_chart(fig_violin, use_container_width=True, key="fig_violin")
+
 
 # ---------------------------
-# Tab 5: Establecimiento
+# Tab 5: Ingreso
 # ---------------------------
 with tab5:
+
+
+
+    st.subheader("📈 Distribución por Tipo de Ingreso (2025)")
+    base_2025 = base_total[base_total["ANIO"] == 2025].copy()
+    fig_torta_tab4 = px.pie(
+        base_2025, names="INGRESO", hole=0.3,
+        title="Distribución de estudiantes por tipo de ingreso (2025)"
+    )
+    fig_torta_tab4.update_traces(textposition='inside', textinfo='percent+label')
+    st.plotly_chart(fig_torta_tab4, use_container_width=True, key="fig_torta_tab4")
+
+# Sankey por INGRESO y CARRERA con filtro de tipo de ingreso
+    st.subheader("Flujo entre Tipo de Ingreso y Carrera (2025)")
+    tipos_ingreso = sorted(base_2025["INGRESO"].dropna().unique())
+    ingreso_seleccionado = st.selectbox("Selecciona un tipo de ingreso", tipos_ingreso)
+
+    df_sankey = base_2025[
+        (base_2025["INGRESO"] == ingreso_seleccionado) &
+        base_2025["CARRERA"].notna()
+    ].copy()
+
+    df_grouped = df_sankey.groupby(["INGRESO", "CARRERA"]).size().reset_index(name="count")
+
+    all_labels = list(pd.unique(df_grouped["INGRESO"].tolist() + df_grouped["CARRERA"].tolist()))
+    label_to_index = {label: i for i, label in enumerate(all_labels)}
+
+    source = df_grouped["INGRESO"].map(label_to_index)
+    target = df_grouped["CARRERA"].map(label_to_index)
+    value = df_grouped["count"]
+
+    import plotly.graph_objects as go
+    fig_sankey = go.Figure(data=[
+        go.Sankey(
+            node=dict(
+                pad=15,
+                thickness=20,
+                line=dict(color="black", width=0.5),
+                label=all_labels,
+                color="blue"
+            ),
+            link=dict(
+                source=source,
+                target=target,
+                value=value
+            )
+        )
+    ])
+
+    fig_sankey.update_layout(title_text=f"Relación entre Ingreso '{ingreso_seleccionado}' y Carrera (2025)", font_size=12)
+    st.plotly_chart(fig_sankey, use_container_width=True, key="fig_sankey")
+
+
+
+# ---------------------------
+# Tab 6: Establecimiento
+# ---------------------------
+with tab6:
     st.header("Colegios con más estudiantes (Región seleccionada)")
 
     region_filtrada = base_total[base_total["CODIGO_REGION"] == region_seleccionada].copy()
