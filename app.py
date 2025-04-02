@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 # ---------------------------
 # Cargar datos
 # ---------------------------
+
+
 @st.cache_data
 def cargar_datos():
     return pd.read_excel("bbdd/base_total_homologada.xlsx")
@@ -26,6 +28,8 @@ def cargar_geojson_regiones():
 
 base_total = cargar_datos()
 regiones = cargar_geojson_regiones()
+
+
 
 # ---------------------------
 # Limpieza de datos base
@@ -53,26 +57,43 @@ carreras_seleccionadas = st.sidebar.multiselect(
 )
 
 regiones_disponibles = sorted(base_total["CODIGO_REGION"].dropna().unique())
-region_seleccionada = st.sidebar.selectbox("Selecciona una región", regiones_disponibles)
+
+# Establecer 8 como región seleccionada por defecto
+if 8 in regiones_disponibles:
+    default_index = regiones_disponibles.index(8)
+else:
+    default_index = 0  # por si no está la 8, usar la primera
+
+region_seleccionada = st.sidebar.selectbox(
+    "Selecciona una región",
+    opciones := regiones_disponibles,
+    index=default_index
+)
+
 
 # ---------------------------
 # Tabs del dashboard
 # ---------------------------
+
 tab0, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📘 Introducción",
     "📈 Puntaje por Carrera",
     "🗺️ Estudiantes por Región (2025)",
     "📊 Sexo",
     "🎟️ Grupo dependencia",
-    "🧠 Tipo de ingreso ",
+    "🎟️ Tipo de ingreso ",
     "🏫 Establecimiento"
 ])
 
 
-# ---------------------------
+
+# --------------------------
 # Tab 0: Introducción
 # ---------------------------
+
 with tab0:
+
+    # Título y GIF
     st.markdown("""
     <div style='text-align: center;'>
         <h1 style='font-size: 2.5em;'>📘 Bienvenido/a al Dashboard PAES</h1>
@@ -80,9 +101,10 @@ with tab0:
         <img src='https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcnV0a2EwNnY4eHphdHFuY3JzYnh4OG9hYjFjZDRidGttODF4b3o1diZlcD12MV9naWZzX3NlYXJjaCZjdD1n/kUTME7ABmhYg5J3psM/giphy.gif' 
              width='500' style='margin-top: 10px; border-radius: 12px;'>
     </div>
+    """, unsafe_allow_html=True)
 
+    st.markdown("""
     <br>
-
     <div style='font-size: 1.1em; line-height: 1.6;'>
         Este panel interactivo permite explorar información sobre:
         <ul>
@@ -95,13 +117,31 @@ with tab0:
     </div>
     """, unsafe_allow_html=True)
 
+    # Equipo técnico
+    st.markdown("""---""")
     st.markdown("""
-    ---
     **Equipo técnico:**
     - 👩‍💻 [Javiera Baeza – Ingeniera Civil Biomédica](https://www.linkedin.com/in/javiera-baeza-acuña-378458216/)
     - 🧑‍💼 [Matías Deneken – Sociólogo](https://www.linkedin.com/in/deneken/)
     - 👩‍💼 [Florencia Pampaloni – Ingeniera Comercial](https://www.linkedin.com/in/florencia-pampaloni-benítez/)
     """)
+
+    # Código abierto
+    st.markdown("""---""")
+    st.markdown(
+        """
+        <div style="text-align: center; font-size: 0.9em; margin-top: 30px;">
+            🛠️ Este dashboard es <strong>código abierto</strong>.<br>
+            <a href="https://github.com/matdknu/dataviz_fw" target="_blank" style="text-decoration: none;">
+                <img src="https://cdn-icons-png.flaticon.com/512/25/25231.png" alt="GitHub" width="20" style="vertical-align: middle; margin-right: 5px;">
+                Ver repositorio en GitHub
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
 
 # ---------------------------
 # Tab 1: Puntaje por carrera
@@ -322,6 +362,7 @@ with tab5:
 with tab6:
     st.header("Colegios con más estudiantes (Región seleccionada)")
 
+
     region_filtrada = base_total[base_total["CODIGO_REGION"] == region_seleccionada].copy()
 
     top_colegios = (
@@ -356,5 +397,9 @@ with tab6:
         st.info("⚠️ No hay datos suficientes para mostrar una nube de palabras en esta región.")
 
 
+
+
+
 #streamlit run app.py
 # return pd.read_excel("bbdd/base_total_homologada.xlsx")
+
