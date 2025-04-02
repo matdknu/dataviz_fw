@@ -64,7 +64,7 @@ tab0, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🗺️ Estudiantes por Región (2025)",
     "📊 Sexo",
     "🎟️ Grupo dependencia",
-    "🎟️ Tipo de ingreso ",
+    "🧠 Tipo de ingreso ",
     "🏫 Establecimiento"
 ])
 
@@ -183,8 +183,29 @@ with tab3:
     fig_facet.update_layout(xaxis=dict(tickmode='array', tickvals=[2023, 2024, 2025]))
     st.plotly_chart(fig_facet, use_container_width=True)
 
+    st.subheader("Distribución de Puntajes por Sexo y Carrera")
+    df_box = df_sexo[
+        df_sexo["PTJE_PONDERADO"].notna() &
+        df_sexo["SEXO"].notna()
+    ].copy()
 
-    
+    fig_box = px.box(
+        df_box,
+        x="CARRERA",
+        y="PTJE_PONDERADO",
+        color="SEXO",
+        points="all",  # Muestra puntos individuales además de la caja
+        title="Boxplot del Puntaje Ponderado por Sexo y Carrera",
+        labels={"PTJE_PONDERADO": "Puntaje Ponderado", "CARRERA": "Carrera", "SEXO": "Sexo"}
+    )
+    fig_box.update_layout(
+        xaxis_title="Carrera",
+        yaxis_title="Puntaje Ponderado",
+        boxmode="group",
+        yaxis=dict(range=[500, 1000])
+    )
+    st.plotly_chart(fig_box, use_container_width=True)
+
 
 # ---------------------------
 # Tab 4: Dependencia
