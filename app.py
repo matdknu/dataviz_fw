@@ -68,9 +68,7 @@ tab0, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🏫 Establecimiento"
 ])
 
-# ---------------------------
-# Tab 0: Introducción
-# ---------------------------
+
 # ---------------------------
 # Tab 0: Introducción
 # ---------------------------
@@ -104,7 +102,6 @@ with tab0:
     - 🧑‍💼 [Matías Deneken – Sociólogo](https://www.linkedin.com/in/deneken/)
     - 👩‍💼 [Florencia Pampaloni – Ingeniera Comercial](https://www.linkedin.com/in/florencia-pampaloni-benítez/)
     """)
-
 
 # ---------------------------
 # Tab 1: Puntaje por carrera
