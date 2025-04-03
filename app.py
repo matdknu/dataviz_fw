@@ -29,6 +29,45 @@ def cargar_geojson_regiones():
 base_total = cargar_datos()
 regiones = cargar_geojson_regiones()
 
+@st.cache_data
+def cargar_datos():
+    return pd.read_excel("bbdd/base_total_homologada.xlsx")
+
+base_total = cargar_datos()
+
+# ---------------------------
+# Limpieza y transformación inicial
+# ---------------------------
+base_total["ANIO"] = pd.to_numeric(base_total["ANIO"], errors="coerce").fillna(0).astype(int)
+base_total = base_total[base_total["ANIO"].isin([2023, 2024, 2025])].copy()
+base_total["CODIGO_REGION"] = pd.to_numeric(base_total["CODIGO_REGION"], errors="coerce").astype("Int64")
+
+# ---------------------------
+# Definición de base_2025 (una sola vez para todo el dashboard)
+# ---------------------------
+base_2025 = base_total[base_total["ANIO"] == 2025].copy()
+
+# Diccionario: código → nombre oficial de región
+diccionario_regiones = {
+    "01": "Tarapacá",
+    "02": "Antofagasta",
+    "03": "Atacama",
+    "04": "Coquimbo",
+    "05": "Valparaíso",
+    "06": "O'Higgins",
+    "07": "Maule",
+    "08": "Biobío",
+    "09": "La Araucanía",
+    "10": "Los Lagos",
+    "11": "Aysén",
+    "12": "Magallanes",
+    "13": "Metropolitana",
+    "14": "Los Ríos",
+    "15": "Arica y Parinacota",
+    "16": "Ñuble",
+    "17": "Los Andes"
+}
+
 
 
 # ---------------------------
@@ -98,7 +137,7 @@ with tab0:
     <div style='text-align: center;'>
         <h1 style='font-size: 2.5em;'>📘 Bienvenido/a al Dashboard PAES</h1>
         <h3 style='color: #004fa3;'>Universidad de Concepción</h3>
-        <img src='https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcnV0a2EwNnY4eHphdHFuY3JzYnh4OG9hYjFjZDRidGttODF4b3o1diZlcD12MV9naWZzX3NlYXJjaCZjdD1n/kUTME7ABmhYg5J3psM/giphy.gif' 
+        <img src='https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExeW9kOXoyeHdqejY5bnRsNmM2d2Rubmh1aXo5ajdyend2bTd6YWR1aiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/eznDnXaRn6BOvix6rY/giphy.gif' 
              width='500' style='margin-top: 10px; border-radius: 12px;'>
     </div>
     """, unsafe_allow_html=True)
@@ -173,17 +212,22 @@ with tab1:
     st.plotly_chart(fig_barras, use_container_width=True)
 
 # ---------------------------
-# Tab 2: Mapa por región (2025)
+# Tab 2: Mapa y barras por región (2025)
 # ---------------------------
 with tab2:
     st.header("Estudiantes por Región (2025)")
-    base_2025 = base_total[base_total["ANIO"] == 2025].copy()
-    base_2025["CODIGO_REGION"] = base_2025["CODIGO_REGION"].astype(str).str.zfill(2)
-    base_2025["n"] = 1
 
-    region_count = base_2025.groupby("CODIGO_REGION")["n"].sum().reset_index(name="N_ESTUDIANTES")
+    base_2025_map = base_total[base_total["ANIO"] == 2025].copy()
+    base_2025_map["CODIGO_REGION"] = base_2025_map["CODIGO_REGION"].astype(str).str.zfill(2)
+    base_2025_map["n"] = 1
+
+    region_count = base_2025_map.groupby("CODIGO_REGION")["n"].sum().reset_index(name="N_ESTUDIANTES")
+    region_count["NOMBRE_REGION"] = region_count["CODIGO_REGION"].map(diccionario_regiones).fillna(region_count["CODIGO_REGION"])
+
     gdf_regiones = regiones.merge(region_count, left_on="REGION", right_on="CODIGO_REGION", how="left")
     gdf_regiones["N_ESTUDIANTES"] = gdf_regiones["N_ESTUDIANTES"].fillna(0)
+    gdf_regiones["NOMBRE_REGION"] = gdf_regiones["CODIGO_REGION"].map(diccionario_regiones).fillna(gdf_regiones["CODIGO_REGION"])
+
     geojson_regiones = gdf_regiones.__geo_interface__
 
     fig_mapa = px.choropleth_mapbox(
@@ -197,8 +241,33 @@ with tab2:
         color_continuous_scale="Blues",
         title="Estudiantes por Región – Año 2025"
     )
-    fig_mapa.update_layout(margin={"r":0,"t":40,"l":0,"b":0})
+    fig_mapa.update_layout(margin={"r": 0, "t": 40, "l": 0, "b": 0})
     st.plotly_chart(fig_mapa, use_container_width=True)
+
+    # ---------------------------
+    # Gráfico de barras por región
+    # ---------------------------
+    st.subheader("Distribución de Estudiantes por Región (2025)")
+
+    region_count_sorted = region_count.sort_values("N_ESTUDIANTES", ascending=False)
+
+    fig_barras_region = px.bar(
+        region_count_sorted,
+        x="NOMBRE_REGION",
+        y="N_ESTUDIANTES",
+        text_auto=True,
+        labels={"NOMBRE_REGION": "Región", "N_ESTUDIANTES": "Cantidad de Estudiantes"},
+        title="Cantidad de Estudiantes por Región (2025)"
+    )
+
+    fig_barras_region.update_layout(
+        xaxis_title="Región",
+        yaxis_title="Cantidad de Estudiantes",
+        margin=dict(t=40, b=20),
+        template="simple_white"
+    )
+
+    st.plotly_chart(fig_barras_region, use_container_width=True)
 
 # ---------------------------
 # Tab 3: Sexo (facet + waffle)
@@ -302,11 +371,8 @@ with tab4:
 # Tab 5: Ingreso
 # ---------------------------
 with tab5:
-
-
-
     st.subheader("📈 Distribución por Tipo de Ingreso (2025)")
-    base_2025 = base_total[base_total["ANIO"] == 2025].copy()
+
     fig_torta_tab4 = px.pie(
         base_2025, names="INGRESO", hole=0.3,
         title="Distribución de estudiantes por tipo de ingreso (2025)"
@@ -314,8 +380,11 @@ with tab5:
     fig_torta_tab4.update_traces(textposition='inside', textinfo='percent+label')
     st.plotly_chart(fig_torta_tab4, use_container_width=True, key="fig_torta_tab4")
 
-# Sankey por INGRESO y CARRERA con filtro de tipo de ingreso
+    # ---------------------------
+    # Sankey embellecido por ingreso y carrera
+    # ---------------------------
     st.subheader("Flujo entre Tipo de Ingreso y Carrera (2025)")
+
     tipos_ingreso = sorted(base_2025["INGRESO"].dropna().unique())
     ingreso_seleccionado = st.selectbox("Selecciona un tipo de ingreso", tipos_ingreso)
 
@@ -333,27 +402,51 @@ with tab5:
     target = df_grouped["CARRERA"].map(label_to_index)
     value = df_grouped["count"]
 
+    x_pos = []
+    y_pos = []
+    step_y = 1.0 / (len(all_labels) + 1)
+
+    for i, label in enumerate(all_labels):
+        if label == ingreso_seleccionado:
+            x_pos.append(0.01)
+            y_pos.append(0.5)
+        else:
+            x_pos.append(0.9)
+            y_pos.append(i * step_y)
+
     import plotly.graph_objects as go
+
     fig_sankey = go.Figure(data=[
         go.Sankey(
+            arrangement="snap",
             node=dict(
-                pad=15,
+                pad=20,
                 thickness=20,
-                line=dict(color="black", width=0.5),
+                line=dict(color="black", width=0.3),
                 label=all_labels,
-                color="blue"
+                color="rgba(255,255,255,0.9)",
+                x=x_pos,
+                y=y_pos,
+                hovertemplate='%{label}<extra></extra>'
             ),
             link=dict(
                 source=source,
                 target=target,
-                value=value
+                value=value,
+                color="rgba(255, 102, 102, 0.5)"
             )
         )
     ])
 
-    fig_sankey.update_layout(title_text=f"Relación entre Ingreso '{ingreso_seleccionado}' y Carrera (2025)", font_size=12)
-    st.plotly_chart(fig_sankey, use_container_width=True, key="fig_sankey")
+    fig_sankey.update_layout(
+        title_text=f"Relación entre Ingreso '{ingreso_seleccionado}' y Carrera (2025)",
+        font=dict(size=13, color="black", family="Verdana"),
+        height=max(600, 30 * len(all_labels)),
+        width=1100,
+        margin=dict(l=30, r=30, t=60, b=20)
+    )
 
+    st.plotly_chart(fig_sankey, use_container_width=False, key="fig_sankey_final")
 
 
 # ---------------------------
