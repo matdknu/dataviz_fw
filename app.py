@@ -186,7 +186,12 @@ with tab0:
 # Tab 1: Puntaje por carrera
 # ---------------------------
 with tab1:
-    st.header("Tendencia del Puntaje Promedio PAES por Carrera")
+    st.header("Tendencia del Puntaje Promedio PAES por Carrera") 
+    st.markdown("""
+    Este gráfico muestra el puntaje promedio PAES por carrera de los dos test obligatorios. Ellos son 
+    Matemáticas 1 y Comprensión Lectora
+    """)
+
     df_puntaje = base_total[base_total["CARRERA"].isin(carreras_seleccionadas)].copy()
     df_linea = df_puntaje.groupby(["ANIO", "CARRERA"])["PTJE_PONDERADO"].mean().reset_index()
 
@@ -201,6 +206,10 @@ with tab1:
     st.plotly_chart(fig_linea, use_container_width=True)
 
     st.subheader("Promedio de Puntaje por Sexo y Año")
+    st.markdown("""
+    Este gráfico muestra la tendencia entre hombres y mujeres. A lo largo de 2023 y 2025 no se constatan
+    diferencias significativas entre ellos. 
+    """)
     df_barras = base_total.groupby(["ANIO", "SEXO"])["PTJE_PONDERADO"].mean().reset_index()
     fig_barras = px.bar(
         df_barras,
@@ -269,27 +278,47 @@ with tab2:
 
     st.plotly_chart(fig_barras_region, use_container_width=True)
 
-# ---------------------------
-# Tab 3: Sexo (facet + waffle)
-# ---------------------------
 with tab3:
     st.header("Proporción de Postulantes por Sexo")
+
     df_sexo = base_total[base_total["CARRERA"].isin(carreras_seleccionadas)].copy()
     df_n = df_sexo.groupby(["ANIO", "SEXO", "CARRERA"]).size().reset_index(name="N")
     df_n["TOTAL"] = df_n.groupby(["ANIO", "CARRERA"])["N"].transform("sum")
     df_n["PROPORCION"] = df_n["N"] / df_n["TOTAL"]
+    df_n["TEXTO"] = (df_n["PROPORCION"] * 100).round(1).astype(str) + "%"
 
-    fig_facet = px.line(
+    fig_stacked = px.bar(
         df_n,
-        x="ANIO", y="PROPORCION", color="SEXO",
-        facet_col="CARRERA", facet_col_wrap=2,
-        markers=True
+        x="ANIO",
+        y="PROPORCION",
+        color="SEXO",
+        facet_col="CARRERA",
+        facet_col_wrap=2,
+        title="Proporción de Postulantes por Sexo (Stacked)",
+        labels={"PROPORCION": "Proporción", "ANIO": "Año", "SEXO": "Sexo"},
+        text="TEXTO"  # 👈 Añade texto al gráfico
     )
-    fig_facet.update_yaxes(tickformat=".0%")
-    fig_facet.update_layout(xaxis=dict(tickmode='array', tickvals=[2023, 2024, 2025]))
-    st.plotly_chart(fig_facet, use_container_width=True)
 
+    fig_stacked.update_layout(
+        barmode="stack",
+        uniformtext_minsize=10,
+        uniformtext_mode='hide',
+        yaxis=dict(tickformat=".0%"),
+        xaxis=dict(tickmode="array", tickvals=[2023, 2024, 2025])
+    )
+
+    # Aplicar 0–100% en todas las facetas
+    for axis in fig_stacked.layout:
+        if axis.startswith("yaxis"):
+            fig_stacked.layout[axis].update(range=[0, 1], tickformat=".0%")
+
+    st.plotly_chart(fig_stacked, use_container_width=True)
+
+    # ---------------------------
+    # Boxplot
+    # ---------------------------
     st.subheader("Distribución de Puntajes por Sexo y Carrera")
+
     df_box = df_sexo[
         df_sexo["PTJE_PONDERADO"].notna() &
         df_sexo["SEXO"].notna()
@@ -300,7 +329,7 @@ with tab3:
         x="CARRERA",
         y="PTJE_PONDERADO",
         color="SEXO",
-        points="all",  # Muestra puntos individuales además de la caja
+        points="all",
         title="Boxplot del Puntaje Ponderado por Sexo y Carrera",
         labels={"PTJE_PONDERADO": "Puntaje Ponderado", "CARRERA": "Carrera", "SEXO": "Sexo"}
     )
