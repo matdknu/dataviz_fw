@@ -81,7 +81,7 @@ tab0, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🗺️ Estudiantes por Región (2025)",
     "📊 Sexo",
     "🎟️ Grupo dependencia",
-    "🎟️ Tipo de ingreso ",
+    "🧪 Tipo de ingreso ",
     "🏫 Establecimiento"
 ])
 
