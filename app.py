@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 # Cargar datos
 # ---------------------------
 
-
 @st.cache_data
 def cargar_datos():
     return pd.read_excel("bbdd/base_total_homologada.xlsx")
