@@ -136,7 +136,7 @@ with tab0:
     <div style='text-align: center;'>
         <h1 style='font-size: 2.5em;'>📘 Bienvenido/a al Dashboard PAES</h1>
         <h3 style='color: #004fa3;'>Universidad de Concepción</h3>
-        <img src='https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExeW9kOXoyeHdqejY5bnRsNmM2d2Rubmh1aXo5ajdyend2bTd6YWR1aiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/eznDnXaRn6BOvix6rY/giphy.gif' 
+        <img src='https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExY2VoNDZ0a2JmeGt4em1sbHpjcnNudXBvdXY0OHE3ZWs5c3NsNWoxcCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/hZE5xoaM0Oxw4xiqH7/giphy.gif' 
              width='500' style='margin-top: 10px; border-radius: 12px;'>
     </div>
     """, unsafe_allow_html=True)
@@ -187,8 +187,9 @@ with tab0:
 with tab1:
     st.header("Tendencia del Puntaje Promedio PAES por Carrera") 
     st.markdown("""
-    Este gráfico muestra el puntaje promedio PAES por carrera de los dos test obligatorios. Ellos son 
-    Matemáticas 1 y Comprensión Lectora
+    Este gráfico muestra el **puntaje promedio PAES por carrera** de los dos test obligatorios:  
+    - **Matemáticas 1**  
+    - **Comprensión Lectora**
     """)
 
     df_puntaje = base_total[base_total["CARRERA"].isin(carreras_seleccionadas)].copy()
@@ -201,23 +202,50 @@ with tab1:
         labels={"PTJE_PONDERADO": "Puntaje Promedio", "ANIO": "Año"},
         title="Tendencia Puntaje Promedio por Carrera"
     )
-    fig_linea.update_layout(yaxis=dict(range=[500, 1000]), xaxis=dict(tickmode='array', tickvals=[2023, 2024, 2025]))
+    fig_linea.update_layout(
+        yaxis=dict(range=[500, 1000]),
+        xaxis=dict(tickmode='array', tickvals=[2023, 2024, 2025])
+    )
     st.plotly_chart(fig_linea, use_container_width=True)
 
+    # ---------------------------
+    # Segundo gráfico: promedio por sexo
+    # ---------------------------
     st.subheader("Promedio de Puntaje por Sexo y Año")
     st.markdown("""
-    Este gráfico muestra la tendencia entre hombres y mujeres. A lo largo de 2023 y 2025 no se constatan
-    diferencias significativas entre ellos. 
+    Este gráfico muestra la **tendencia del puntaje ponderado PAES** de hombres y mujeres en el periodo 2023 a 2025.  
+    En general, no se constatan diferencias significativas entre los promedios de ambos grupos.
     """)
+
     df_barras = base_total.groupby(["ANIO", "SEXO"])["PTJE_PONDERADO"].mean().reset_index()
+
+    # Asegurar orden de categorías
+    df_barras["SEXO"] = pd.Categorical(df_barras["SEXO"], categories=["MASCULINO", "FEMENINO"], ordered=True)
+
     fig_barras = px.bar(
         df_barras,
         x="ANIO", y="PTJE_PONDERADO", color="SEXO",
         barmode="group", text_auto=".1f",
-        title="Promedio Puntaje Ponderado PAES por Sexo"
+        title="Promedio Puntaje Ponderado PAES por Sexo",
+        color_discrete_map={
+            "MASCULINO": "#2C8DC5",
+            "FEMENINO": "#A040AC"
+        },
+        labels={
+            "ANIO": "Año",
+            "PTJE_PONDERADO": "Puntaje Promedio",
+            "SEXO": "Sexo"
+        }
     )
-    fig_barras.update_layout(yaxis=dict(range=[500, 1000]), xaxis=dict(tickmode='array', tickvals=[2023, 2024, 2025]))
+
+    fig_barras.update_layout(
+        yaxis=dict(range=[500, 1000]),
+        xaxis=dict(tickmode='array', tickvals=[2023, 2024, 2025]),
+        legend=dict(orientation="h", y=-0.25, x=0.5, xanchor="center")  # leyenda abajo
+    )
+
     st.plotly_chart(fig_barras, use_container_width=True)
+
 
 # ---------------------------
 # Tab 2: Mapa y barras por región (2025)
@@ -277,51 +305,86 @@ with tab2:
 
     st.plotly_chart(fig_barras_region, use_container_width=True)
 
-with tab3:
-    st.header("Proporción de Postulantes por Sexo")
 
+# ---------------------------
+# Tab 3: Sexo (stacked bar + boxplot)
+# ---------------------------
+with tab3:
+    st.header("📊 Proporción de Postulantes por Sexo")
+
+    st.markdown("""
+    Este panel permite analizar las **diferencias por sexo** entre los postulantes a distintas carreras durante los años 2023, 2024 y 2025.
+
+    ### 📘 Gráfico 1: Proporción de estudiantes por sexo (stacked)
+    Cada barra representa el 100% de postulantes a una carrera en un año específico.  
+    
+    El objetivo es visualizar la distribución relativa por sexo en cada caso.
+
+    ---
+    """)
+
+    # Base común
     df_sexo = base_total[base_total["CARRERA"].isin(carreras_seleccionadas)].copy()
+
+    # ==============================
+    # Gráfico 1: Stacked bar por proporción
+    # ==============================
     df_n = df_sexo.groupby(["ANIO", "SEXO", "CARRERA"]).size().reset_index(name="N")
     df_n["TOTAL"] = df_n.groupby(["ANIO", "CARRERA"])["N"].transform("sum")
     df_n["PROPORCION"] = df_n["N"] / df_n["TOTAL"]
     df_n["TEXTO"] = (df_n["PROPORCION"] * 100).round(1).astype(str) + "%"
+
+    # Orden personalizado: Masculino abajo
+    df_n["SEXO"] = pd.Categorical(df_n["SEXO"], categories=["MASCULINO", "FEMENINO"], ordered=True)
+    df_n = df_n.sort_values(["ANIO", "CARRERA", "SEXO"])
 
     fig_stacked = px.bar(
         df_n,
         x="ANIO",
         y="PROPORCION",
         color="SEXO",
+        text="TEXTO",
         facet_col="CARRERA",
         facet_col_wrap=2,
         title="Proporción de Postulantes por Sexo (Stacked)",
         labels={"PROPORCION": "Proporción", "ANIO": "Año", "SEXO": "Sexo"},
-        text="TEXTO"  # 👈 Añade texto al gráfico
+        color_discrete_map={
+            "MASCULINO": "#2C8DC5",  # azul fuerte
+            "FEMENINO": "#A040AC"    # morado
+        }
     )
 
     fig_stacked.update_layout(
         barmode="stack",
-        uniformtext_minsize=10,
-        uniformtext_mode='hide',
-        yaxis=dict(tickformat=".0%"),
-        xaxis=dict(tickmode="array", tickvals=[2023, 2024, 2025])
+        uniformtext_minsize=8,
+        uniformtext_mode='show',
+        yaxis=dict(tickformat=".0%", range=[0, 1]),
+        xaxis=dict(tickmode="array", tickvals=[2023, 2024, 2025]),
+        legend=dict(orientation="h", y=-0.25, x=0.5, xanchor="center")  # leyenda abajo
     )
-
-    # Aplicar 0–100% en todas las facetas
-    for axis in fig_stacked.layout:
-        if axis.startswith("yaxis"):
-            fig_stacked.layout[axis].update(range=[0, 1], tickformat=".0%")
 
     st.plotly_chart(fig_stacked, use_container_width=True)
 
-    # ---------------------------
-    # Boxplot
-    # ---------------------------
-    st.subheader("Distribución de Puntajes por Sexo y Carrera")
+    # ==============================
+    # Gráfico 2: Boxplot por puntaje PAES
+    # ==============================
+    st.subheader("📈 Distribución de Puntajes por Sexo y Carrera")
+    st.markdown("""
+    Este gráfico compara los **puntajes ponderados PAES** de hombres y mujeres por carrera.  
+    - Las **cajas** muestran el **rango intercuartílico** (del 25% al 75%) y la mediana.  
+    - Los **puntos individuales** reflejan la dispersión del puntaje.  
+    Es útil para observar si existen diferencias sistemáticas en el rendimiento por sexo.
+
+    ---
+    """)
 
     df_box = df_sexo[
         df_sexo["PTJE_PONDERADO"].notna() &
         df_sexo["SEXO"].notna()
     ].copy()
+
+    # Asegurar orden también en boxplot
+    df_box["SEXO"] = pd.Categorical(df_box["SEXO"], categories=["MASCULINO", "FEMENINO"], ordered=True)
 
     fig_box = px.box(
         df_box,
@@ -329,15 +392,26 @@ with tab3:
         y="PTJE_PONDERADO",
         color="SEXO",
         points="all",
-        title="Boxplot del Puntaje Ponderado por Sexo y Carrera",
-        labels={"PTJE_PONDERADO": "Puntaje Ponderado", "CARRERA": "Carrera", "SEXO": "Sexo"}
+        title="Distribución de Puntajes Ponderados por Sexo y Carrera",
+        labels={
+            "PTJE_PONDERADO": "Puntaje Ponderado",
+            "CARRERA": "Carrera",
+            "SEXO": "Sexo"
+        },
+        color_discrete_map={
+            "MASCULINO": "#2C8DC5",
+            "FEMENINO": "#A040AC"
+        }
     )
+
     fig_box.update_layout(
+        boxmode="group",
         xaxis_title="Carrera",
         yaxis_title="Puntaje Ponderado",
-        boxmode="group",
-        yaxis=dict(range=[500, 1000])
+        yaxis=dict(range=[500, 1000]),
+        legend=dict(orientation="h", y=-0.25, x=0.5, xanchor="center")  # leyenda abajo
     )
+
     st.plotly_chart(fig_box, use_container_width=True)
 
 
@@ -523,4 +597,3 @@ with tab6:
 
 #streamlit run app.py
 # return pd.read_excel("bbdd/base_total_homologada.xlsx")
-
