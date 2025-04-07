@@ -85,43 +85,45 @@ st.image("assets/logo_udec.png", width=250)
 # ---------------------------
 # Sidebar
 # ---------------------------
-st.sidebar.title("🎓 Filtros")
+#st.sidebar.title("🎓 Filtros")
 
-carreras_disponibles = sorted(base_total["CARRERA"].dropna().unique())
-carreras_seleccionadas = st.sidebar.multiselect(
-    "Selecciona carreras para comparar (afecta todos los gráficos)",
-    options=carreras_disponibles,
-    default=["Sociología", "Medicina", "Derecho"]
-)
+#carreras_disponibles = sorted(base_total["CARRERA"].dropna().unique())
+#carreras_seleccionadas = st.sidebar.multiselect(
+#    "Selecciona carreras para comparar (afecta todos los gráficos)",
+#    options=carreras_disponibles,
+#    default=["Sociología", "Ingeniería Civil Biomédica", "Ingeniería Comercial"]
+#)
 
-regiones_disponibles = sorted(base_total["CODIGO_REGION"].dropna().unique())
+#regiones_disponibles = sorted(base_total["CODIGO_REGION"].dropna().unique())
 
 # Establecer 8 como región seleccionada por defecto
-if 8 in regiones_disponibles:
-    default_index = regiones_disponibles.index(8)
-else:
-    default_index = 0  # por si no está la 8, usar la primera
+#if 8 in regiones_disponibles:
+#    default_index = regiones_disponibles.index(8)
+#else:
+#    default_index = 0  # por si no está la 8, usar la primera
 
-region_seleccionada = st.sidebar.selectbox(
-    "Selecciona una región",
-    opciones := regiones_disponibles,
-    index=default_index
-)
+#region_seleccionada = st.sidebar.selectbox(
+#    "Selecciona una región",
+#    opciones := regiones_disponibles,
+#    index=default_index
+#)
 
 
 # ---------------------------
 # Tabs del dashboard
 # ---------------------------
 
-tab0, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab0, tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "📘 Introducción",
     "📈 Puntaje por Carrera",
     "🗺️ Estudiantes por Región (2025)",
-    "📊 Sexo",
+    "📊 Paridad de género",
     "🎟️ Grupo dependencia",
     "🧪 Tipo de ingreso ",
-    "🏫 Establecimiento"
+    "🏫 Región y carreras",
+    "🤖 ChatBot"
 ])
+
 
 
 
@@ -194,7 +196,7 @@ with tab1:
     carreras_seleccionadas = st.multiselect(
         "Selecciona carreras para comparar",
         options=carreras_disponibles,
-        default=["Sociología", "Medicina", "Derecho"],
+        default=["Sociología", "Ingeniería Civil Biomédica", "Ingeniería Comercial"],
         key="filtro_carrera_tab1"
     )
 
@@ -379,33 +381,29 @@ with tab2:
 
     st.plotly_chart(fig_barras_region, use_container_width=True)
 
-
 # ---------------------------
 # Tab 3: Sexo (stacked bar + boxplot)
 # ---------------------------
 with tab3:
     st.header("📊 Proporción de Postulantes por Sexo")
 
-    # Filtro de carrera (ahora al principio)
+    # Filtro de carrera (al inicio)
     carreras_disponibles = sorted(base_total["CARRERA"].dropna().unique())
     carreras_seleccionadas = st.multiselect(
-    "Selecciona carreras para comparar",
-    options=carreras_disponibles,
-    default=["Sociología", "Medicina", "Derecho"],
-    key="filtro_carrera_tab3"  # ✅ clave única para este filtro
-)
-
+        "Selecciona carreras para comparar",
+        options=carreras_disponibles,
+        default=["Sociología", "Ingeniería Civil Biomédica", "Ingeniería Comercial"],
+        key="filtro_carrera_tab3"
+    )
 
     st.markdown("""
     Este panel permite analizar las **diferencias por sexo** entre los postulantes a distintas carreras durante los años 2023, 2024 y 2025.
-
-    ### 📘 Gráfico 1: Proporción de estudiantes por sexo (stacked)
     Cada barra representa el 100% de postulantes a una carrera en un año específico.  
-    
     El objetivo es visualizar la distribución relativa por sexo en cada caso.
-
-    ---
     """)
+    st.markdown("""
+        ### 📘 Gráfico 1: Proporción de estudiantes por sexo (stacked)
+        """)
 
     # Base común filtrada
     df_sexo = base_total[base_total["CARRERA"].isin(carreras_seleccionadas)].copy()
@@ -418,7 +416,6 @@ with tab3:
     df_n["PROPORCION"] = df_n["N"] / df_n["TOTAL"]
     df_n["TEXTO"] = (df_n["PROPORCION"] * 100).round(1).astype(str) + "%"
 
-    # Orden personalizado: Masculino abajo
     df_n["SEXO"] = pd.Categorical(df_n["SEXO"], categories=["MASCULINO", "FEMENINO"], ordered=True)
     df_n = df_n.sort_values(["ANIO", "CARRERA", "SEXO"])
 
@@ -433,8 +430,8 @@ with tab3:
         title="Proporción de Postulantes por Sexo (Stacked)",
         labels={"PROPORCION": "Proporción", "ANIO": "Año", "SEXO": "Sexo"},
         color_discrete_map={
-            "MASCULINO": "#2C8DC5",  # azul fuerte
-            "FEMENINO": "#A040AC"    # morado
+            "MASCULINO": "#2C8DC5",
+            "FEMENINO": "#A040AC"
         }
     )
 
@@ -449,6 +446,34 @@ with tab3:
 
     st.plotly_chart(fig_stacked, use_container_width=True)
 
+    # ---------------------------
+    # Comentarios automáticos - Gráfico 1 (stacked bar)
+    # ---------------------------
+    st.subheader("📝 Resumen automático: proporción por sexo (2025)")
+
+    resumen_stacked = []
+
+    df_2025_stacked = df_n[df_n["ANIO"] == 2025]
+
+    for carrera in carreras_seleccionadas:
+        datos_carrera = df_2025_stacked[df_2025_stacked["CARRERA"] == carrera]
+        if datos_carrera.shape[0] < 2:
+            resumen_stacked.append(f"- No hay datos completos para **{carrera}** en 2025.")
+            continue
+
+        prop_m = datos_carrera[datos_carrera["SEXO"] == "MASCULINO"]["PROPORCION"].values[0]
+        prop_f = datos_carrera[datos_carrera["SEXO"] == "FEMENINO"]["PROPORCION"].values[0]
+
+        dominante = "mujeres" if prop_f > prop_m else "hombres"
+        diferencia = abs(prop_f - prop_m)
+
+        if diferencia < 0.1:
+            resumen_stacked.append(f"- En **{carrera}**, la proporción por sexo está bastante equilibrada en 2025.")
+        else:
+            resumen_stacked.append(f"- En **{carrera}**, predominan los **{dominante}** en 2025 (≈ {(max(prop_m, prop_f)*100):.1f}%).")
+
+    st.markdown("\n".join(resumen_stacked))
+
     # ==============================
     # Gráfico 2: Boxplot por puntaje PAES
     # ==============================
@@ -458,7 +483,6 @@ with tab3:
     - Las **cajas** muestran el **rango intercuartílico** (del 25% al 75%) y la mediana.  
     - Los **puntos individuales** reflejan la dispersión del puntaje.  
     Es útil para observar si existen diferencias sistemáticas en el rendimiento por sexo.
-
     ---
     """)
 
@@ -497,6 +521,35 @@ with tab3:
 
     st.plotly_chart(fig_box, use_container_width=True)
 
+    # ---------------------------
+    # Comentarios automáticos - Gráfico 2 (boxplot)
+    # ---------------------------
+    st.subheader("📝 Resumen automático: puntajes por sexo")
+
+    resumen_boxplot = []
+
+    for carrera in carreras_seleccionadas:
+        for sexo in ["MASCULINO", "FEMENINO"]:
+            subset = df_box[(df_box["CARRERA"] == carrera) & (df_box["SEXO"] == sexo)]
+
+            if subset.empty:
+                resumen_boxplot.append(f"- No hay datos para **{sexo.lower()}s en {carrera}**.")
+                continue
+
+            media = subset["PTJE_PONDERADO"].mean()
+            mediana = subset["PTJE_PONDERADO"].median()
+            q1 = subset["PTJE_PONDERADO"].quantile(0.25)
+            q3 = subset["PTJE_PONDERADO"].quantile(0.75)
+            dispersion = q3 - q1
+            nivel_dispersion = "alta" if dispersion > 80 else "baja"
+
+            resumen_boxplot.append(
+                f"- En **{carrera}**, los/as {sexo.lower()}s tienen una media de **{media:.1f}**, mediana de **{mediana:.1f}** y una **dispersión {nivel_dispersion}** (RIC ≈ {dispersion:.1f} puntos)."
+            )
+
+    st.markdown("\n".join(resumen_boxplot))
+
+
 # ---------------------------
 # Tab 4: Dependencia
 # ---------------------------
@@ -518,7 +571,7 @@ with tab4:
     carreras_filtradas = st.multiselect(
         "Selecciona una o más carreras para visualizar su distribución de puntajes",
         options=carreras_disponibles,
-        default=["Sociología"]
+       default=["Sociología", "Ingeniería Civil Biomédica", "Ingeniería Comercial"],
     )
 
     df_densidad = base_total[
@@ -687,6 +740,60 @@ with tab6:
     else:
         st.info("⚠️ No hay datos suficientes para mostrar una nube de palabras en esta región.")
 
+
+
+
+with tab7:
+    st.header("🤖 Asistente Interactivo de Datos PAES")
+    st.markdown("Haz una pregunta sobre los datos. Por ejemplo:\n- *¿Hay diferencias por sexo en la UdeC?*\n- *¿Qué carrera tiene más mujeres?*")
+
+    user_input = st.text_input("Tu pregunta:", key="chat_input_bot")
+
+
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+
+    def responder_chat(pregunta):
+        pregunta = pregunta.lower()
+
+        if "sexo" in pregunta and "diferencia" in pregunta:
+            df_sexo_gen = base_total[
+                base_total["SEXO"].notna() &
+                base_total["PTJE_PONDERADO"].notna()
+            ]
+
+            df_mean = df_sexo_gen.groupby("SEXO")["PTJE_PONDERADO"].mean().round(1)
+            if all(sexo in df_mean for sexo in ["MASCULINO", "FEMENINO"]):
+                diff = abs(df_mean["MASCULINO"] - df_mean["FEMENINO"])
+                grupo = "mujeres" if df_mean["FEMENINO"] > df_mean["MASCULINO"] else "hombres"
+                if diff > 10:
+                    return f"Sí, hay diferencias generales por sexo en la UdeC. En promedio, los/as {grupo} obtienen mayores puntajes (≈ {diff:.1f} puntos de diferencia)."
+                else:
+                    return "No se observan grandes diferencias generales por sexo en los puntajes PAES. Ambos grupos tienen promedios similares."
+            else:
+                return "No hay suficientes datos para comparar por sexo."
+        
+        elif "más mujeres" in pregunta or "más hombres" in pregunta:
+            df_cuenta = base_total.groupby(["CARRERA", "SEXO"]).size().reset_index(name="N")
+            df_pivot = df_cuenta.pivot(index="CARRERA", columns="SEXO", values="N").fillna(0)
+            df_pivot["DIF"] = df_pivot["FEMENINO"] - df_pivot["MASCULINO"]
+            carrera = df_pivot["DIF"].abs().idxmax()
+            if df_pivot.loc[carrera, "DIF"] > 0:
+                return f"La carrera con más mujeres que hombres es **{carrera}**."
+            else:
+                return f"La carrera con más hombres que mujeres es **{carrera}**."
+        
+        else:
+            return "Interesante pregunta. Aún no tengo una respuesta automática para eso. ¡Estoy aprendiendo!"
+
+    # Procesar y mostrar respuesta
+    if user_input:
+        respuesta = responder_chat(user_input)
+        st.session_state.chat_history.append((user_input, respuesta))
+
+    for pregunta, respuesta in st.session_state.chat_history:
+        st.markdown(f"**Tú:** {pregunta}")
+        st.markdown(f"**Asistente:** {respuesta}")
 
 
 #streamlit run app.py
