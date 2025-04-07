@@ -180,18 +180,27 @@ with tab0:
     )
 
 
-
-# ---------------------------
-# Tab 1: Puntaje por carrera
-# ---------------------------
 with tab1:
-    st.header("Tendencia del Puntaje Promedio PAES por Carrera") 
+    st.header("Tendencia del Puntaje Promedio PAES por Carrera")
+
     st.markdown("""
-    Este gráfico muestra el **puntaje promedio PAES por carrera** de los dos test obligatorios:  
-    - **Matemáticas 1**  
-    - **Comprensión Lectora**
+    Este gráfico muestra el puntaje tendencial por carrera del puntaje ponderado de la Prueba de Acceso a la Educación Superior.
+    Es importante constatar que el gráfico muestra un promedio entre la prueba Comprensión Lectora y Matemáticas 1, ambos obligatorios para la 
+    admisión universitaria. Esta elección se fundamenta para lograr un análisis más general y no sesgado por la ponderación que cada una de las carreras
+    posee. 
     """)
 
+    carreras_disponibles = sorted(base_total["CARRERA"].dropna().unique())
+    carreras_seleccionadas = st.multiselect(
+        "Selecciona carreras para comparar",
+        options=carreras_disponibles,
+        default=["Sociología", "Medicina", "Derecho"],
+        key="filtro_carrera_tab1"
+    )
+
+    # ---------------------------
+    # Gráfico 1: Línea por carrera
+    # ---------------------------
     df_puntaje = base_total[base_total["CARRERA"].isin(carreras_seleccionadas)].copy()
     df_linea = df_puntaje.groupby(["ANIO", "CARRERA"])["PTJE_PONDERADO"].mean().reset_index()
 
@@ -208,25 +217,52 @@ with tab1:
     )
     st.plotly_chart(fig_linea, use_container_width=True)
 
+    # ------------------------------
+    # Comentario automático por carrera (2023 vs 2025)
+    # ------------------------------
+    comentarios = []
+    for carrera in carreras_seleccionadas:
+        df_carrera = df_linea[df_linea["CARRERA"] == carrera]
+        ptje_2023 = df_carrera[df_carrera["ANIO"] == 2023]["PTJE_PONDERADO"].mean()
+        ptje_2025 = df_carrera[df_carrera["ANIO"] == 2025]["PTJE_PONDERADO"].mean()
+        if pd.isna(ptje_2023) or pd.isna(ptje_2025):
+            comentarios.append(f"- No hay datos completos para **{carrera}** en 2023 y/o 2025.")
+            continue
+        delta = ptje_2025 - ptje_2023
+        if abs(delta) < 5:
+            tendencia = "se mantuvo estable"
+        elif delta > 0:
+            tendencia = f"aumentó en {delta:.1f} puntos"
+        else:
+            tendencia = f"disminuyó en {abs(delta):.1f} puntos"
+        comentarios.append(f"- En **{carrera}**, el puntaje promedio {tendencia} entre 2023 y 2025.")
+    st.markdown("\n".join(comentarios))
+
     # ---------------------------
-    # Segundo gráfico: promedio por sexo
+    # Gráfico 2: Barras por sexo y carrera
     # ---------------------------
-    st.subheader("Promedio de Puntaje por Sexo y Año")
+    st.subheader("📊 Promedio de Puntaje por Sexo y Año")
     st.markdown("""
-    Este gráfico muestra la **tendencia del puntaje ponderado PAES** de hombres y mujeres en el periodo 2023 a 2025.  
-    En general, no se constatan diferencias significativas entre los promedios de ambos grupos.
+    Este gráfico muestra la **tendencia del puntaje ponderado PAES** de hombres y mujeres para las carreras seleccionadas.  
+    Permite observar si existen **diferencias significativas por sexo** dentro de cada carrera.
     """)
 
-    df_barras = base_total.groupby(["ANIO", "SEXO"])["PTJE_PONDERADO"].mean().reset_index()
+    df_sexo = base_total[
+        base_total["CARRERA"].isin(carreras_seleccionadas) &
+        base_total["SEXO"].notna() &
+        base_total["PTJE_PONDERADO"].notna()
+    ].copy()
 
-    # Asegurar orden de categorías
+    df_barras = df_sexo.groupby(["ANIO", "CARRERA", "SEXO"])["PTJE_PONDERADO"].mean().reset_index()
+
     df_barras["SEXO"] = pd.Categorical(df_barras["SEXO"], categories=["MASCULINO", "FEMENINO"], ordered=True)
 
     fig_barras = px.bar(
         df_barras,
         x="ANIO", y="PTJE_PONDERADO", color="SEXO",
         barmode="group", text_auto=".1f",
-        title="Promedio Puntaje Ponderado PAES por Sexo",
+        facet_col="CARRERA", facet_col_wrap=2,
+        title="Promedio Puntaje Ponderado PAES por Sexo y Carrera",
         color_discrete_map={
             "MASCULINO": "#2C8DC5",
             "FEMENINO": "#A040AC"
@@ -241,10 +277,48 @@ with tab1:
     fig_barras.update_layout(
         yaxis=dict(range=[500, 1000]),
         xaxis=dict(tickmode='array', tickvals=[2023, 2024, 2025]),
-        legend=dict(orientation="h", y=-0.25, x=0.5, xanchor="center")  # leyenda abajo
+        legend=dict(orientation="h", y=-0.25, x=0.5, xanchor="center")
     )
 
     st.plotly_chart(fig_barras, use_container_width=True)
+
+    # ---------------------------
+    # Comentario automático por carrera y sexo a lo largo del tiempo
+    # ---------------------------
+
+
+    comentarios_sexo = []
+
+    for carrera in carreras_seleccionadas:
+        df_carrera = df_barras[df_barras["CARRERA"] == carrera]
+
+        diferencias = []
+        años_con_datos = df_carrera["ANIO"].unique()
+
+        for anio in [2023, 2024, 2025]:
+            df_anio = df_carrera[df_carrera["ANIO"] == anio]
+            if df_anio.shape[0] < 2:
+                continue  # Falta sexo masculino o femenino
+
+            punt_m = df_anio[df_anio["SEXO"] == "MASCULINO"]["PTJE_PONDERADO"].values[0]
+            punt_f = df_anio[df_anio["SEXO"] == "FEMENINO"]["PTJE_PONDERADO"].values[0]
+            diferencia = abs(punt_m - punt_f)
+            diferencias.append((anio, diferencia))
+
+        if len(diferencias) == 0:
+            comentarios_sexo.append(f"- No hay datos suficientes para **{carrera}**.")
+            continue
+
+        diferencias_significativas = [anio for anio, diff in diferencias if diff > 10]
+
+        if len(diferencias_significativas) == 0:
+            comentarios_sexo.append(f"- En **{carrera}**, hombres y mujeres se encuentran en **condiciones similares de puntaje a lo largo del tiempo** (diferencias menores a 10 puntos).")
+        else:
+            detalle = ", ".join([f"{anio} (≈ {diff:.1f} pts)" for anio, diff in diferencias if diff > 10])
+            comentarios_sexo.append(f"- En **{carrera}**, se aprecian **diferencias significativas por sexo** en los años: {detalle}.")
+
+    st.markdown("\n".join(comentarios_sexo))
+
 
 
 # ---------------------------
@@ -312,6 +386,16 @@ with tab2:
 with tab3:
     st.header("📊 Proporción de Postulantes por Sexo")
 
+    # Filtro de carrera (ahora al principio)
+    carreras_disponibles = sorted(base_total["CARRERA"].dropna().unique())
+    carreras_seleccionadas = st.multiselect(
+    "Selecciona carreras para comparar",
+    options=carreras_disponibles,
+    default=["Sociología", "Medicina", "Derecho"],
+    key="filtro_carrera_tab3"  # ✅ clave única para este filtro
+)
+
+
     st.markdown("""
     Este panel permite analizar las **diferencias por sexo** entre los postulantes a distintas carreras durante los años 2023, 2024 y 2025.
 
@@ -323,7 +407,7 @@ with tab3:
     ---
     """)
 
-    # Base común
+    # Base común filtrada
     df_sexo = base_total[base_total["CARRERA"].isin(carreras_seleccionadas)].copy()
 
     # ==============================
@@ -360,7 +444,7 @@ with tab3:
         uniformtext_mode='show',
         yaxis=dict(tickformat=".0%", range=[0, 1]),
         xaxis=dict(tickmode="array", tickvals=[2023, 2024, 2025]),
-        legend=dict(orientation="h", y=-0.25, x=0.5, xanchor="center")  # leyenda abajo
+        legend=dict(orientation="h", y=-0.25, x=0.5, xanchor="center")
     )
 
     st.plotly_chart(fig_stacked, use_container_width=True)
@@ -383,7 +467,6 @@ with tab3:
         df_sexo["SEXO"].notna()
     ].copy()
 
-    # Asegurar orden también en boxplot
     df_box["SEXO"] = pd.Categorical(df_box["SEXO"], categories=["MASCULINO", "FEMENINO"], ordered=True)
 
     fig_box = px.box(
@@ -409,11 +492,10 @@ with tab3:
         xaxis_title="Carrera",
         yaxis_title="Puntaje Ponderado",
         yaxis=dict(range=[500, 1000]),
-        legend=dict(orientation="h", y=-0.25, x=0.5, xanchor="center")  # leyenda abajo
+        legend=dict(orientation="h", y=-0.25, x=0.5, xanchor="center")
     )
 
     st.plotly_chart(fig_box, use_container_width=True)
-
 
 # ---------------------------
 # Tab 4: Dependencia
@@ -552,46 +634,58 @@ with tab5:
 
 
 # ---------------------------
-# Tab 6: Establecimiento
+# Tab 6: Carreras por Región (Top 10) + Nube de Palabras
 # ---------------------------
 with tab6:
-    st.header("Colegios con más estudiantes (Región seleccionada)")
+    st.header("🎓 Carreras más frecuentes por región (2025)")
 
+    # Selección de región
+    codigos_region = sorted(base_total["CODIGO_REGION"].dropna().unique())
+    region_select = st.selectbox("Selecciona una región para explorar", codigos_region, index=codigos_region.index(8) if 8 in codigos_region else 0)
+    base_region = base_total[
+        (base_total["ANIO"] == 2025) &
+        (base_total["CODIGO_REGION"] == region_select)
+    ].copy()
 
-    region_filtrada = base_total[base_total["CODIGO_REGION"] == region_seleccionada].copy()
+    nombre_region = diccionario_regiones.get(str(region_select).zfill(2), str(region_select))
 
-    top_colegios = (
-        region_filtrada["NOMBRE_COLEGIO_EGRESO"]
-        .astype(str)
+    # ---------------------------
+    # Gráfico de barras: Top 10 carreras en esa región
+    # ---------------------------
+    top_carreras_region = (
+        base_region["CARRERA"]
         .value_counts()
-        .head(30)
+        .head(10)
         .reset_index()
+        .rename(columns={"index": "CARRERA", "CARRERA": "N_ESTUDIANTES"})
     )
-    top_colegios.columns = ["NOMBRE_COLEGIO_EGRESO", "N_ESTUDIANTES"]
 
-    fig_bar = px.bar(
-        top_colegios,
+    fig_bar_top10 = px.bar(
+        top_carreras_region,
         x="N_ESTUDIANTES",
-        y="NOMBRE_COLEGIO_EGRESO",
+        y="CARRERA",
         orientation="h",
-        title=f"Colegios con más estudiantes (Región {region_seleccionada})",
-        labels={"NOMBRE_COLEGIO_EGRESO": "Nombre del Colegio", "N_ESTUDIANTES": "Cantidad de Estudiantes"}
+        title=f"Top 10 carreras con más estudiantes en {nombre_region} (2025)",
+        labels={"CARRERA": "Carrera", "N_ESTUDIANTES": "Cantidad de Estudiantes"}
     )
-    fig_bar.update_layout(yaxis=dict(categoryorder='total ascending'))
-    st.plotly_chart(fig_bar, use_container_width=True)
 
-    st.subheader("Nube de Palabras de Colegios")
-    texto = " ".join(region_filtrada["NOMBRE_COLEGIO_EGRESO"].dropna().astype(str))
-    if texto.strip():
-        wordcloud = WordCloud(width=1000, height=500, background_color="white").generate(texto)
+    fig_bar_top10.update_layout(yaxis=dict(categoryorder='total ascending'))
+    st.plotly_chart(fig_bar_top10, use_container_width=True)
+
+    # ---------------------------
+    # Nube de palabras: Carreras en esa región
+    # ---------------------------
+    st.subheader("🔤 Nube de Palabras de Carreras (2025)")
+
+    texto_carreras = " ".join(base_region["CARRERA"].dropna().astype(str).tolist())
+    if texto_carreras.strip():
+        wordcloud = WordCloud(width=1000, height=500, background_color="white").generate(texto_carreras)
         fig_wc, ax = plt.subplots(figsize=(15, 7))
         ax.imshow(wordcloud, interpolation="bilinear")
         ax.axis("off")
         st.pyplot(fig_wc)
     else:
         st.info("⚠️ No hay datos suficientes para mostrar una nube de palabras en esta región.")
-
-
 
 
 
