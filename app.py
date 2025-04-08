@@ -607,17 +607,15 @@ with tab4:
 # ---------------------------
 # Tab 5: Ingreso
 # ---------------------------
+
 with tab5:
     st.subheader("📈 Distribución por Tipo de Ingreso (2025)")
 
-   # Agrupar por tipo de ingreso
-ingreso_counts = base_2025.groupby("INGRESO").size().reset_index(name="CANTIDAD")
+       # Agrupar por tipo de ingreso
+    ingreso_counts = base_2025.groupby("INGRESO").size().reset_index(name="CANTIDAD")
 
 # Calcular el porcentaje sobre el total
-ingreso_counts["PORCENTAJE"] = ingreso_counts["CANTIDAD"] / ingreso_counts["CANTIDAD"].sum()
-
-with tab5:
-    st.subheader("📈 Distribución por Tipo de Ingreso (2025)")
+    ingreso_counts["PORCENTAJE"] = ingreso_counts["CANTIDAD"] / ingreso_counts["CANTIDAD"].sum()
 
     fig_treemap_tab5 = px.treemap(
         ingreso_counts,
