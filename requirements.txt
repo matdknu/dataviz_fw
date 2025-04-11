@@ -9,4 +9,10 @@ openpyxl
 streamlit
 pandas
 plotly
+streamlit
+pandas
+plotly
+matplotlib
+wordcloud
+openpyxl
 
