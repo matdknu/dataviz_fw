@@ -42,7 +42,7 @@ base_total = base_total[base_total["ANIO"].isin([2023, 2024, 2025])].copy()
 base_total["CODIGO_REGION"] = pd.to_numeric(base_total["CODIGO_REGION"], errors="coerce").astype("Int64")
 
 # ---------------------------
-# Definición de base_2025 (una sola vez para todo el dashboard)
+# Definición de base_2025 
 # ---------------------------
 base_2025 = base_total[base_total["ANIO"] == 2025].copy()
 
@@ -123,7 +123,6 @@ tab0, tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "🏫 Región y carreras",
     "🤖 ChatBot"
 ])
-
 
 
 
@@ -763,7 +762,7 @@ with tab6:
 
 with tab7:
     st.header("🤖 Asistente Interactivo de Datos PAES")
-    st.markdown("Haz una pregunta sobre los datos. Por ejemplo:\n- *¿Hay diferencias por sexo en la UdeC?*\n- *¿Qué carrera tiene más mujeres?*")
+    st.markdown("Haz una pregunta sobre los datos")
 
     user_input = st.text_input("Tu pregunta:", key="chat_input_bot")
 
