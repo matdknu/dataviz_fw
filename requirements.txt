@@ -1,0 +1,12 @@
+streamlit
+pandas
+numpy
+plotly
+geopandas
+matplotlib
+wordcloud
+openpyxl
+streamlit
+pandas
+plotly
+
