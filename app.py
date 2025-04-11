@@ -709,9 +709,10 @@ with tab5:
 with tab6:
     st.header("🎓 Carreras más frecuentes por región (2025)")
 
-    # Selección de región
     codigos_region = sorted(base_total["CODIGO_REGION"].dropna().unique())
-    region_select = st.selectbox("Selecciona una región para explorar", codigos_region, index=codigos_region.index(8) if 8 in codigos_region else 0)
+    default_index = list(codigos_region).index(8) if 8 in codigos_region else 0
+    region_select = st.selectbox("Selecciona una región para explorar", codigos_region, index=default_index)
+
     base_region = base_total[
         (base_total["ANIO"] == 2025) &
         (base_total["CODIGO_REGION"] == region_select)
@@ -719,53 +720,52 @@ with tab6:
 
     nombre_region = diccionario_regiones.get(str(region_select).zfill(2), str(region_select))
 
-    # ---------------------------
-    # Gráfico de barras: Top 10 carreras en esa región
-    # ---------------------------
-    top_carreras_region = (
-        base_region["CARRERA"]
-        .value_counts()
-        .head(10)
-        .reset_index()
-        .rename(columns={"index": "CARRERA", "CARRERA": "N_ESTUDIANTES"})
-    )
-
-    fig_bar_top10 = px.bar(
-        top_carreras_region,
-        x="N_ESTUDIANTES",
-        y="CARRERA",
-        orientation="h",
-        title=f"Top 10 carreras con más estudiantes en {nombre_region} (2025)",
-        labels={"CARRERA": "Carrera", "N_ESTUDIANTES": "Cantidad de Estudiantes"}
-    )
-
-    fig_bar_top10.update_layout(yaxis=dict(categoryorder='total ascending'))
-    st.plotly_chart(fig_bar_top10, use_container_width=True)
-
-    # ---------------------------
-    # Nube de palabras: Carreras en esa región
-    # ---------------------------
-    st.subheader("🔤 Nube de Palabras de Carreras (2025)")
-
-    texto_carreras = " ".join(base_region["CARRERA"].dropna().astype(str).tolist())
-    if texto_carreras.strip():
-        wordcloud = WordCloud(width=1000, height=500, background_color="white").generate(texto_carreras)
-        fig_wc, ax = plt.subplots(figsize=(15, 7))
-        ax.imshow(wordcloud, interpolation="bilinear")
-        ax.axis("off")
-        st.pyplot(fig_wc)
+    if base_region.empty:
+        st.warning("No hay datos para esta región en el año 2025.")
     else:
-        st.info("⚠️ No hay datos suficientes para mostrar una nube de palabras en esta región.")
+        top_carreras_region = base_region["CARRERA"].value_counts().head(10).reset_index()
+        top_carreras_region = top_carreras_region.rename(columns={
+            "index": "CARRERA",
+            "CARRERA": "N_ESTUDIANTES"
+        })
 
+        if not top_carreras_region.empty:
+            try:
+                fig_bar_top10 = px.bar(
+                    top_carreras_region,
+                    x="N_ESTUDIANTES",
+                    y="CARRERA",
+                    orientation="h",
+                    title=f"Top 10 carreras con más estudiantes en {nombre_region} (2025)",
+                    labels={"CARRERA": "Carrera", "N_ESTUDIANTES": "Cantidad de Estudiantes"}
+                )
+                fig_bar_top10.update_layout(yaxis=dict(categoryorder='total ascending'))
+                st.plotly_chart(fig_bar_top10, use_container_width=True)
+            except Exception as e:
+                st.error(f"No se pudo generar el gráfico de barras. Error: {e}")
+        else:
+            st.info("No se encontraron carreras para graficar.")
 
+        st.subheader("🔤 Nube de Palabras de Carreras (2025)")
 
+        texto_carreras = " ".join(base_region["CARRERA"].dropna().astype(str).tolist())
+        if texto_carreras.strip():
+            wordcloud = WordCloud(width=1000, height=500, background_color="white").generate(texto_carreras)
+            fig_wc, ax = plt.subplots(figsize=(15, 7))
+            ax.imshow(wordcloud, interpolation="bilinear")
+            ax.axis("off")
+            st.pyplot(fig_wc)
+        else:
+            st.info("⚠️ No hay datos suficientes para mostrar una nube de palabras en esta región.")
 
+# ---------------------------
+# Tab 7: Asistente Interactivo de Datos PAES
+# ---------------------------
 with tab7:
     st.header("🤖 Asistente Interactivo de Datos PAES")
     st.markdown("Haz una pregunta sobre los datos")
 
     user_input = st.text_input("Tu pregunta:", key="chat_input_bot")
-
 
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
@@ -778,7 +778,6 @@ with tab7:
                 base_total["SEXO"].notna() &
                 base_total["PTJE_PONDERADO"].notna()
             ]
-
             df_mean = df_sexo_gen.groupby("SEXO")["PTJE_PONDERADO"].mean().round(1)
             if all(sexo in df_mean for sexo in ["MASCULINO", "FEMENINO"]):
                 diff = abs(df_mean["MASCULINO"] - df_mean["FEMENINO"])
@@ -789,21 +788,23 @@ with tab7:
                     return "No se observan grandes diferencias generales por sexo en los puntajes PAES. Ambos grupos tienen promedios similares."
             else:
                 return "No hay suficientes datos para comparar por sexo."
-        
+
         elif "más mujeres" in pregunta or "más hombres" in pregunta:
             df_cuenta = base_total.groupby(["CARRERA", "SEXO"]).size().reset_index(name="N")
             df_pivot = df_cuenta.pivot(index="CARRERA", columns="SEXO", values="N").fillna(0)
-            df_pivot["DIF"] = df_pivot["FEMENINO"] - df_pivot["MASCULINO"]
-            carrera = df_pivot["DIF"].abs().idxmax()
-            if df_pivot.loc[carrera, "DIF"] > 0:
-                return f"La carrera con más mujeres que hombres es **{carrera}**."
+            if {"FEMENINO", "MASCULINO"}.issubset(df_pivot.columns):
+                df_pivot["DIF"] = df_pivot["FEMENINO"] - df_pivot["MASCULINO"]
+                carrera = df_pivot["DIF"].abs().idxmax()
+                if df_pivot.loc[carrera, "DIF"] > 0:
+                    return f"La carrera con más mujeres que hombres es **{carrera}**."
+                else:
+                    return f"La carrera con más hombres que mujeres es **{carrera}**."
             else:
-                return f"La carrera con más hombres que mujeres es **{carrera}**."
-        
+                return "No hay datos suficientes para comparar por sexo en todas las carreras."
+
         else:
             return "Interesante pregunta. Aún no tengo una respuesta automática para eso. ¡Estoy aprendiendo!"
 
-    # Procesar y mostrar respuesta
     if user_input:
         respuesta = responder_chat(user_input)
         st.session_state.chat_history.append((user_input, respuesta))
@@ -812,6 +813,8 @@ with tab7:
         st.markdown(f"**Tú:** {pregunta}")
         st.markdown(f"**Asistente:** {respuesta}")
 
+    if st.button("🗑️ Borrar historial"):
+        st.session_state.chat_history = []
 
 #streamlit run app.py
 # return pd.read_excel("bbdd/base_total_homologada.xlsx")
